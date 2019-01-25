@@ -127,14 +127,20 @@ class NavigationManager(avango.script.Script):
         # enable new technique
         if self.active_navigation_technique_index == 0: # Steering Navigation
             self.active_navigation_technique = self.steeringNavigation
+            self.ray_geometry.Tags.value = ["invisible"]
+            self.intersection_geometry.Tags.value = ["invisible"]
             print("Switch to Steering Navigation")
 
         elif self.active_navigation_technique_index == 1: # Teleport Navigation
             self.active_navigation_technique = self.teleportNavigation
+            self.ray_geometry.Tags.value = ["visible"]
+            self.intersection_geometry.Tags.value = ["visible"]
             print("Switch to Teleport Navigation")
 
         elif self.active_navigation_technique_index == 2: # Navidget Navigation
-            self.active_navigation_technique = self.navidgetNavigation            
+            self.active_navigation_technique = self.navidgetNavigation
+            self.ray_geometry.Tags.value = ["visible"]
+            self.intersection_geometry.Tags.value = ["visible"] 
             print("Switch to Navidget Navigation")
                         
         self.active_navigation_technique.enable(True)
@@ -346,7 +352,6 @@ class SteeringNavigation(NavigationTechnique):
         
 
 
-
 class TeleportNavigation(NavigationTechnique):
 
     ### fields ###
@@ -368,16 +373,32 @@ class TeleportNavigation(NavigationTechnique):
         self.sf_pointer_button.connect_from(self.NAVIGATION_MANAGER.INPUTS.sf_pointer_button)
 
         self.always_evaluate(True) # change global evaluation policy
-
-
+        pointer_button_pressed = False
+        
 
     ### callback functions ###
     def evaluate(self): # implement respective base-class function
-        if self.enable_flag == False:
-            return
 
         ## To-Do: realize Teleport navigation here
+        # Get the values from intersection
+        self.NAVIGATION_MANAGER.calc_pick_result()
 
+        # render ray cast
+        self.NAVIGATION_MANAGER.update_ray_visualization()
+
+        # apply teleportation whe button pressed
+        if self.sf_pointer_button.value and not self.pointer_button_pressed:
+            self.pointer_button_pressed = True
+            
+            _head_rot_mat = avango.gua.make_rot_mat(self.NAVIGATION_MANAGER.VIEWING_SETUP.navigation_node.WorldTransform.value.get_rotate())
+
+            _vec3_intersection_trans = self.NAVIGATION_MANAGER.intersection_geometry.WorldTransform.value.get_translate()
+            _new_trans_mat = avango.gua.make_trans_mat(_vec3_intersection_trans) * _head_rot_mat
+
+            self.NAVIGATION_MANAGER.set_navigation_matrix(_new_trans_mat)
+
+        elif self.sf_pointer_button.value == False:
+            self.pointer_button_pressed = False
 
 
 
@@ -449,4 +470,9 @@ class NavidgetNavigation(NavigationTechnique):
             return
 
         ## To-Do: realize Navidget navigation here
+         # Get the values from intersection
+        self.NAVIGATION_MANAGER.calc_pick_result()
+
+        # render ray cast
+        self.NAVIGATION_MANAGER.update_ray_visualization()
 
